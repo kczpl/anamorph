@@ -1,0 +1,121 @@
+# Builds anamorph for macOS, Windows and Linux and attaches the binaries
+# to a GitHub Release. Fyne uses cgo, so each target is built on its own
+# native runner - there is no cross-compilation.
+#
+# Push a version tag to cut a release:
+#
+#     git tag v0.1.0 && git push origin v0.1.0
+#
+# Or run the workflow manually (Actions -> release -> Run workflow) to build
+# the binaries as downloadable artifacts without publishing a release.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14 # Apple Silicon; the build below is made universal
+    env:
+      # xcode 15+ warns about the duplicate '-lobjc' Fyne's cgo emits.
+      CGO_LDFLAGS: "-Wl,-no_warn_duplicate_libraries"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install the fyne CLI
+        run: go install fyne.io/tools/cmd/fyne@v1.7.2
+      - name: Package a universal .app
+        run: |
+          set -euo pipefail
+          fyne package --release
+          # graft an amd64 slice onto the arm64 bundle so one .app runs on
+          # both Apple Silicon and Intel Macs.
+          CGO_ENABLED=1 GOARCH=amd64 go build -trimpath -tags release -ldflags="-w -s" -o /tmp/anamorph-amd64 .
+          lipo -create anamorph.app/Contents/MacOS/anamorph /tmp/anamorph-amd64 -output /tmp/anamorph-universal
+          mv /tmp/anamorph-universal anamorph.app/Contents/MacOS/anamorph
+          # a free ad-hoc signature seals the bundle so Gatekeeper shows its
+          # normal "unidentified developer" warning, not a "damaged" error.
+          codesign --force --deep -s - anamorph.app
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent anamorph.app dist/anamorph-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anamorph-macos
+          path: dist/anamorph-macos.zip
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install the fyne CLI
+        run: go install fyne.io/tools/cmd/fyne@v1.7.2
+      - name: Package the .exe
+        shell: bash
+        run: |
+          set -euo pipefail
+          fyne package --release
+          mkdir -p dist
+          7z a dist/anamorph-windows.zip anamorph.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anamorph-windows
+          path: dist/anamorph-windows.zip
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          # xorg-dev pulls the X11 headers Fyne needs; the rest cover GL,
+          # Wayland, xkb and the XFree86 video-mode extension, plus PC/SC
+          # for the YubiKey lock.
+          sudo apt-get install -y \
+            libgl1-mesa-dev xorg-dev libxxf86vm-dev \
+            libwayland-dev libxkbcommon-dev libpcsclite-dev
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install the fyne CLI
+        run: go install fyne.io/tools/cmd/fyne@v1.7.2
+      - name: Package the tarball
+        run: |
+          set -euo pipefail
+          fyne package --release
+          mkdir -p dist
+          mv anamorph.tar.xz dist/anamorph-linux.tar.xz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anamorph-linux
+          path: dist/anamorph-linux.tar.xz
+          if-no-files-found: error
+
+  release:
+    needs: [macos, windows, linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to create the release and upload assets
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true

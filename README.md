@@ -58,7 +58,28 @@ instead of printing garbage.
 
 ![anamorph screenshot](docs/screenshot.png)
 
-## Install
+## Download
+
+Grab a prebuilt binary for your platform from the
+[releases page](https://github.com/kczpl/anamorph/releases) - no Go
+toolchain required. This is the easy way to hand a build to the other
+person you paired a YubiKey with.
+
+The builds are not signed by a paid developer certificate, so each
+system warns once on first launch. That is expected; here is how to get
+past it:
+
+- **macOS**: right-click the app and choose **Open**, then **Open** again
+  in the dialog - or run `xattr -cr anamorph.app` once. After that it
+  launches normally.
+- **Windows**: SmartScreen shows a blue banner. Click **More info**, then
+  **Run anyway**.
+- **Linux**: unpack the tarball and run the `anamorph` binary. The YubiKey
+  lock needs PC/SC at runtime - install `libpcsclite` (Debian/Ubuntu:
+  `libpcsclite1`) and start the `pcscd` service. The password lock works
+  without it.
+
+## Build from source
 
 You need Go 1.26+ and, on macOS, the Xcode Command Line Tools
 (`xcode-select --install`). Fyne uses cgo, so a C compiler is required
