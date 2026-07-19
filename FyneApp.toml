@@ -1,0 +1,9 @@
+[Details]
+Icon = "Icon.png"
+Name = "anamorph"
+ID = "me.devnullrand.anamorph"
+Version = "0.1.0"
+Build = 17
+
+[Migrations]
+fyneDo = true

@@ -1,0 +1,85 @@
+# anamorph
+
+![go version](https://img.shields.io/github/go-mod/go-version/kczpl/anamorph)
+![written in go](https://img.shields.io/badge/100%25-Go-00ADD8)
+![dependencies](https://img.shields.io/badge/dependencies-fyne_only-555555)
+![output](https://img.shields.io/badge/output-PNG-555555)
+
+Hide encrypted messages inside ordinary images.
+
+![anamorph screenshot](docs/screenshot.png)
+
+## What it is
+
+A small desktop app. You give it an image and a message, it gives you back
+a PNG that looks exactly the same but carries the message in its pixels.
+Anyone with the PNG and the password can read the message. Without the
+password, it is just a picture.
+
+Everything is Go. The only dependency is [Fyne](https://fyne.io), the GUI
+toolkit. All cryptography and image handling comes straight from the Go
+standard library — no crypto packages, no image libraries, nothing else.
+
+## How it works
+
+- The message is encrypted with AES-256-GCM. The key comes from your
+  password through PBKDF2-SHA256 with 600k iterations.
+- The encrypted payload is written into the least significant bits of the
+  image's R, G and B channels. The alpha channel is left alone.
+- The result is saved as PNG, always. A lossy format like JPEG would
+  destroy the hidden bits.
+- A password is optional. Without one the message is still hidden and
+  integrity-protected, just not secret.
+
+A 500×500 image holds about 93 KB of message. The GCM tag doubles as
+wrong-password detection, so the app can tell you the password is wrong
+instead of printing garbage.
+
+## Install
+
+You need Go 1.26+ and, on macOS, the Xcode Command Line Tools
+(`xcode-select --install`). Fyne uses cgo, so a C compiler is required
+on every platform.
+
+```sh
+git clone https://github.com/kczpl/anamorph
+cd anamorph
+go run .
+```
+
+That's it. If you use [just](https://github.com/casey/just):
+
+```sh
+just setup     # one-time: installs the fyne CLI
+just run       # run from source
+just test      # go test ./... -race -cover
+just build     # vet + test + package anamorph.app
+just install   # build and install into /Applications (macOS)
+```
+
+`just package-mac` produces `dist/anamorph-macos.zip` with a universal
+macOS build (Apple Silicon + Intel). The app is ad-hoc signed but not
+notarized, so on first launch macOS will complain — either click
+**Open Anyway** in System Settings → Privacy & Security, or run
+`xattr -cr anamorph.app` once.
+
+Windows and Linux builds work too, but have to be compiled on the target
+OS (or with [fyne-cross](https://github.com/fyne-io/fyne-cross)), since
+Fyne needs cgo.
+
+## Usage
+
+**Hide**: drop in a PNG or JPEG, type your message, optionally set a
+password, save. You get a new PNG.
+
+**Reveal**: drop in a PNG made by anamorph, type the password if there
+was one, read the message.
+
+## Code layout
+
+- `internal/stego` — bits in, bits out. Hides a length-prefixed payload
+  in the image and gets it back.
+- `internal/crypt` — AES-256-GCM sealing and opening.
+- `internal/vault` — glues the two together, normalizes any decoded
+  image to a clean NRGBA canvas first.
+- `internal/ui` — the Fyne interface. `main.go` just calls `ui.Run()`.
