@@ -5,6 +5,7 @@
 package vault
 
 import (
+	"crypto/ecdh"
 	"image"
 	"image/draw"
 
@@ -12,9 +13,23 @@ import (
 	"anamorph/internal/stego"
 )
 
+// exchange is the hardware half of a yubikey decryption; see crypt.Exchange.
+type Exchange = crypt.Exchange
+
 // encode encrypts message with password and hides it in a copy of img.
 func Encode(img image.Image, message, password string) (*image.NRGBA, error) {
 	payload, err := crypt.Seal(password, message)
+	if err != nil {
+		return nil, err
+	}
+	return stego.Embed(normalize(img), payload)
+}
+
+// encodeYubiKey encrypts message to the yubikey whose public key is
+// recipient and hides it in a copy of img. encoding needs no hardware;
+// only the yubikey holding the private half can decode the result.
+func EncodeYubiKey(img image.Image, message string, recipient *ecdh.PublicKey) (*image.NRGBA, error) {
+	payload, err := crypt.SealTo(recipient, message)
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +45,31 @@ func Decode(img image.Image, password string) (string, error) {
 	return crypt.Open(password, payload)
 }
 
+// extract pulls the still-encrypted payload out of an image, so the caller
+// can learn which unlock method it needs before decrypting.
+func Extract(img image.Image) ([]byte, error) {
+	return stego.Extract(normalize(img))
+}
+
+// needsYubiKey reports whether an extracted payload unlocks with a yubikey
+// rather than a password.
+func NeedsYubiKey(payload []byte) (bool, error) {
+	return crypt.NeedsYubiKey(payload)
+}
+
+// openPassword decrypts an extracted password payload.
+func OpenPassword(payload []byte, password string) (string, error) {
+	return crypt.Open(password, payload)
+}
+
+// openYubiKey decrypts an extracted yubikey payload, using exchange for
+// the hardware step.
+func OpenYubiKey(payload []byte, exchange Exchange) (string, error) {
+	return crypt.OpenWith(exchange, payload)
+}
+
 // messageCapacity returns how many message bytes fit into an image of the
-// given bounds, accounting for the encryption envelope.
+// given bounds, accounting for the larger of the two encryption envelopes.
 func MessageCapacity(bounds image.Rectangle) int {
 	return max(stego.Capacity(bounds)-crypt.Overhead, 0)
 }

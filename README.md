@@ -12,9 +12,10 @@ a PNG that looks exactly the same but carries the message in its pixels.
 Anyone with the PNG and the password can read the message. Without the
 password, it is just a picture.
 
-Everything is Go. The only dependency is [Fyne](https://fyne.io), the GUI
-toolkit. All cryptography and image handling comes straight from the Go
-standard library - no crypto packages, no image libraries, nothing else.
+Everything is Go. Two dependencies: [Fyne](https://fyne.io) for the GUI
+and [piv-go](https://github.com/go-piv/piv-go) to talk to a YubiKey. All
+cryptography and image handling comes straight from the Go standard
+library - no crypto packages, no image libraries, nothing else.
 
 ## How it works
 
@@ -26,6 +27,11 @@ standard library - no crypto packages, no image libraries, nothing else.
   destroy the hidden bits.
 - A password is optional. Without one the message is still hidden and
   integrity-protected, just not secret.
+- Instead of a password you can lock a message to a YubiKey. The app
+  generates a P-256 key inside the YubiKey's PIV applet - it never leaves
+  the hardware - and encrypts to its public half (ECDH plus HKDF-SHA256,
+  same AES-256-GCM). Only that YubiKey, physically plugged in, can
+  decrypt the image.
 
 A 500×500 image holds about 93 KB of message. The GCM tag doubles as
 wrong-password detection, so the app can tell you the password is wrong
@@ -37,7 +43,8 @@ instead of printing garbage.
 
 You need Go 1.26+ and, on macOS, the Xcode Command Line Tools
 (`xcode-select --install`). Fyne uses cgo, so a C compiler is required
-on every platform.
+on every platform. YubiKey support talks PC/SC - built into macOS and
+Windows; on Linux install `libpcsclite-dev` and run the `pcscd` service.
 
 ```sh
 git clone https://github.com/kczpl/anamorph
@@ -67,11 +74,13 @@ Fyne needs cgo.
 
 ## Usage
 
-**Hide**: drop in a PNG or JPEG, type your message, optionally set a
-password, save. You get a new PNG.
+**Hide**: drop in a PNG or JPEG, type your message and pick a lock - a
+password or a YubiKey. With a YubiKey plugged in the app sets it up by
+itself the first time. Save, and you get a new PNG.
 
-**Reveal**: drop in a PNG made by anamorph, type the password if there
-was one, read the message.
+**Reveal**: drop in a PNG made by anamorph. The app tells you what it
+needs - the password, or the right YubiKey in the port - and shows the
+message.
 
 ## Code layout
 
@@ -80,6 +89,9 @@ was one, read the message.
 - `internal/crypt` - AES-256-GCM sealing and opening.
 - `internal/vault` - glues the two together, normalizes any decoded
   image to a clean NRGBA canvas first.
+- `internal/yubikey` - finds or creates the anamorph key on a plugged-in
+  YubiKey and runs the one operation only hardware can: the ECDH half of
+  decryption.
 - `internal/ui` - the Fyne interface. `main.go` just calls `ui.Run()`.
 
 ## The name

@@ -30,8 +30,10 @@ func TestSealOpenRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Seal: %v", err)
 			}
-			if len(payload) != len(tt.message)+Overhead {
-				t.Errorf("payload length = %d, want %d", len(payload), len(tt.message)+Overhead)
+			// password payloads carry the smaller of the two envelopes;
+			// the exported Overhead reserves for the larger yubikey one.
+			if len(payload) != len(tt.message)+headerLen+tagLen {
+				t.Errorf("payload length = %d, want %d", len(payload), len(tt.message)+headerLen+tagLen)
 			}
 			got, err := Open(tt.password, payload)
 			if err != nil {
@@ -80,7 +82,8 @@ func TestCorruptHeader(t *testing.T) {
 		want    error
 	}{
 		{"bad magic", func(p []byte) []byte { p[0] = 'X'; return p }, ErrNotASecretPayload},
-		{"unknown version", func(p []byte) []byte { p[4] = 0x02; return p }, ErrUnsupportedVersion},
+		{"unknown version", func(p []byte) []byte { p[4] = 0x03; return p }, ErrUnsupportedVersion},
+		{"yubikey version", func(p []byte) []byte { p[4] = versionYubiKey; return p }, ErrNeedsYubiKey},
 		{"flipped salt byte", func(p []byte) []byte { p[5] ^= 0xFF; return p }, ErrWrongPasswordOrTampered},
 		{"flipped nonce byte", func(p []byte) []byte { p[21] ^= 0xFF; return p }, ErrWrongPasswordOrTampered},
 		{"length mismatch", func(p []byte) []byte { p[36]++; return p }, ErrCorruptPayload},

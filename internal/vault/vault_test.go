@@ -2,6 +2,8 @@ package vault
 
 import (
 	"bytes"
+	"crypto/ecdh"
+	cryptorand "crypto/rand"
 	"errors"
 	"image"
 	"image/jpeg"
@@ -154,10 +156,100 @@ func TestEncodeMessageTooLarge(t *testing.T) {
 }
 
 func TestMessageCapacity(t *testing.T) {
-	if got, want := MessageCapacity(image.Rect(0, 0, 500, 500)), 93746-53; got != want {
+	// the reserved envelope is the yubikey one (102 bytes), the larger of
+	// the two, so the shown capacity is honest for either lock method.
+	if got, want := MessageCapacity(image.Rect(0, 0, 500, 500)), 93746-102; got != want {
 		t.Errorf("MessageCapacity(500x500) = %d, want %d", got, want)
 	}
 	if got := MessageCapacity(image.Rect(0, 0, 2, 2)); got != 0 {
 		t.Errorf("MessageCapacity(2x2) = %d, want 0", got)
+	}
+}
+
+// softKey stands in for a yubikey: a software P-256 key whose ECDH half
+// exercises the exact same code path the hardware provides.
+func softKey(t *testing.T) (*ecdh.PrivateKey, Exchange) {
+	t.Helper()
+	priv, err := ecdh.P256().GenerateKey(cryptorand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	return priv, func(ephemeral *ecdh.PublicKey) ([]byte, error) {
+		return priv.ECDH(ephemeral)
+	}
+}
+
+// testYubiKeyPNGRoundTrip mirrors the full yubikey user journey: seal to a
+// key's public half, write a PNG, reload it, sniff the method, decrypt via
+// the exchange callback.
+func TestYubiKeyPNGRoundTrip(t *testing.T) {
+	const message = "the eagle lands at midnight"
+	priv, exchange := softKey(t)
+
+	encoded, err := EncodeYubiKey(noisyImage(80, 60), message, priv.PublicKey())
+	if err != nil {
+		t.Fatalf("EncodeYubiKey: %v", err)
+	}
+	var file bytes.Buffer
+	if err := png.Encode(&file, encoded); err != nil {
+		t.Fatalf("png.Encode: %v", err)
+	}
+	reloaded, _, err := image.Decode(&file)
+	if err != nil {
+		t.Fatalf("image.Decode: %v", err)
+	}
+
+	payload, err := Extract(reloaded)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	needs, err := NeedsYubiKey(payload)
+	if err != nil || !needs {
+		t.Fatalf("NeedsYubiKey = %v, %v, want true, nil", needs, err)
+	}
+	got, err := OpenYubiKey(payload, exchange)
+	if err != nil {
+		t.Fatalf("OpenYubiKey: %v", err)
+	}
+	if got != message {
+		t.Errorf("got %q, want %q", got, message)
+	}
+}
+
+func TestOpenYubiKeyWrongKey(t *testing.T) {
+	priv, _ := softKey(t)
+	_, wrongExchange := softKey(t)
+
+	encoded, err := EncodeYubiKey(noisyImage(32, 32), "msg", priv.PublicKey())
+	if err != nil {
+		t.Fatalf("EncodeYubiKey: %v", err)
+	}
+	payload, err := Extract(encoded)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if _, err := OpenYubiKey(payload, wrongExchange); !errors.Is(err, crypt.ErrWrongYubiKeyOrTampered) {
+		t.Errorf("got %v, want ErrWrongYubiKeyOrTampered", err)
+	}
+}
+
+// testPasswordPayloadSniffsAsPassword pins the sniffing that reveal relies
+// on: a password image must never route to the yubikey path.
+func TestPasswordPayloadSniffsAsPassword(t *testing.T) {
+	encoded, err := Encode(noisyImage(32, 32), "msg", "pw")
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	payload, err := Extract(encoded)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	needs, err := NeedsYubiKey(payload)
+	if err != nil || needs {
+		t.Fatalf("NeedsYubiKey = %v, %v, want false, nil", needs, err)
+	}
+	got, err := OpenPassword(payload, "pw")
+	if err != nil || got != "msg" {
+		t.Errorf("OpenPassword = %q, %v, want \"msg\", nil", got, err)
 	}
 }

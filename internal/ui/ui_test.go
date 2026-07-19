@@ -108,8 +108,8 @@ func TestHideLoadReaderShowsCapacity(t *testing.T) {
 	if u.hide.cover == nil {
 		t.Fatal("cover image not stored")
 	}
-	// 50*40 px hold 746 payload bytes; minus the 53-byte crypt envelope.
-	if want := "PHOTO.PNG - FITS UP TO 693 B"; u.hide.caption.Text != want {
+	// 50*40 px hold 746 payload bytes; minus the 102-byte crypt envelope.
+	if want := "PHOTO.PNG - FITS UP TO 644 B"; u.hide.caption.Text != want {
 		t.Errorf("caption = %q, want %q", u.hide.caption.Text, want)
 	}
 }
