@@ -25,7 +25,7 @@ func Run() {
 	u := newUI(w)
 	w.SetContent(u.root)
 	w.SetOnDropped(u.handleDrop)
-	stop := watchYubiKey(u.ykBadgeUpdate)
+	stop := u.yk.watch(u.ykBadgeUpdate)
 	defer stop()
 	w.ShowAndRun()
 }
@@ -39,6 +39,7 @@ type ui struct {
 	tabHide   *tab
 	tabReveal *tab
 	current   int
+	yk        *ykHub // the shared yubikey watcher all subscribers go through
 
 	// the presence badge: a green dot and serial shown while a yubikey
 	// with an anamorph key is plugged in, invisible otherwise.
@@ -48,7 +49,9 @@ type ui struct {
 }
 
 func newUI(win fyne.Window) *ui {
-	u := &ui{hide: newHidePanel(win), reveal: newRevealPanel(win)}
+	u := &ui{yk: newYkHub()}
+	u.hide = newHidePanel(win, u.yk)
+	u.reveal = newRevealPanel(win, u.yk)
 	u.tabHide = newTab("HIDE", func() { u.selectTab(0) })
 	u.tabReveal = newTab("REVEAL", func() { u.selectTab(1) })
 

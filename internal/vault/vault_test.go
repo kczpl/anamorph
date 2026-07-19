@@ -2,8 +2,6 @@ package vault
 
 import (
 	"bytes"
-	"crypto/ecdh"
-	cryptorand "crypto/rand"
 	"errors"
 	"image"
 	"image/jpeg"
@@ -15,6 +13,7 @@ import (
 
 	"anamorph/internal/crypt"
 	"anamorph/internal/stego"
+	"anamorph/internal/testkeys"
 )
 
 func TestMain(m *testing.M) {
@@ -166,25 +165,12 @@ func TestMessageCapacity(t *testing.T) {
 	}
 }
 
-// softKey stands in for a yubikey: a software P-256 key whose ECDH half
-// exercises the exact same code path the hardware provides.
-func softKey(t *testing.T) (*ecdh.PrivateKey, Exchange) {
-	t.Helper()
-	priv, err := ecdh.P256().GenerateKey(cryptorand.Reader)
-	if err != nil {
-		t.Fatalf("GenerateKey: %v", err)
-	}
-	return priv, func(ephemeral *ecdh.PublicKey) ([]byte, error) {
-		return priv.ECDH(ephemeral)
-	}
-}
-
 // testYubiKeyPNGRoundTrip mirrors the full yubikey user journey: seal to a
 // key's public half, write a PNG, reload it, sniff the method, decrypt via
 // the exchange callback.
 func TestYubiKeyPNGRoundTrip(t *testing.T) {
 	const message = "the eagle lands at midnight"
-	priv, exchange := softKey(t)
+	priv, exchange := testkeys.SoftKey(t)
 
 	encoded, err := EncodeYubiKey(noisyImage(80, 60), message, priv.PublicKey())
 	if err != nil {
@@ -217,8 +203,8 @@ func TestYubiKeyPNGRoundTrip(t *testing.T) {
 }
 
 func TestOpenYubiKeyWrongKey(t *testing.T) {
-	priv, _ := softKey(t)
-	_, wrongExchange := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
+	_, wrongExchange := testkeys.SoftKey(t)
 
 	encoded, err := EncodeYubiKey(noisyImage(32, 32), "msg", priv.PublicKey())
 	if err != nil {

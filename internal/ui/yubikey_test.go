@@ -2,7 +2,6 @@ package ui
 
 import (
 	"crypto/ecdh"
-	"crypto/rand"
 	"image"
 	mathrand "math/rand/v2"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"anamorph/internal/crypt"
+	"anamorph/internal/testkeys"
 	"anamorph/internal/vault"
 	"anamorph/internal/yubikey"
 )
@@ -127,7 +127,7 @@ func TestHideYubiKeyReady(t *testing.T) {
 	u, _ := newTestUI(t)
 	h := u.hide
 
-	priv, _ := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
 	h.setMethod(true)
 	h.ykUpdate(yubikey.Info{Status: yubikey.Ready, Serial: 1234567, Public: priv.PublicKey(), Name: "anamorph 2026-07-19 3f9a1c"})
 	if want := "YUBIKEY 1234567 READY"; h.ykStatus.Text != want {
@@ -181,7 +181,7 @@ func TestHidePairCeremony(t *testing.T) {
 	f := fakeYubiKey(t)
 	u, _ := newTestUI(t)
 	h := u.hide
-	priv, _ := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
 
 	h.setMethod(true)
 	h.startPairing()
@@ -236,7 +236,7 @@ func TestHidePairReplaceConfirm(t *testing.T) {
 	f := fakeYubiKey(t)
 	u, _ := newTestUI(t)
 	h := u.hide
-	priv, _ := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
 
 	h.setMethod(true)
 	h.startPairing()
@@ -352,7 +352,7 @@ func TestYubiKeyBadge(t *testing.T) {
 	if u.ykBadge.Visible() {
 		t.Error("badge visible before any yubikey was seen")
 	}
-	priv, _ := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
 	u.ykBadgeUpdate(yubikey.Info{Status: yubikey.Ready, Serial: 32054623, Public: priv.PublicKey(), Name: "anamorph 2026-07-19 3f9a1c"})
 	if !u.ykBadge.Visible() {
 		t.Error("badge hidden with a ready yubikey plugged in")
@@ -370,19 +370,6 @@ func TestYubiKeyBadge(t *testing.T) {
 	}
 }
 
-// softKey stands in for a yubikey: a software P-256 key whose ECDH half
-// exercises the exact same code path the hardware provides.
-func softKey(t *testing.T) (*ecdh.PrivateKey, func(*ecdh.PublicKey) ([]byte, error)) {
-	t.Helper()
-	priv, err := ecdh.P256().GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatalf("GenerateKey: %v", err)
-	}
-	return priv, func(ephemeral *ecdh.PublicKey) ([]byte, error) {
-		return priv.ECDH(ephemeral)
-	}
-}
-
 func noisyImage(w, h int) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))
 	rng := mathrand.New(mathrand.NewPCG(7, 42))
@@ -396,7 +383,7 @@ func noisyImage(w, h int) *image.NRGBA {
 // images decrypt with the typed password, yubikey images via the exchange.
 func TestDecodeRoutesByPayload(t *testing.T) {
 	fakeYubiKey(t)
-	priv, exchange := softKey(t)
+	priv, exchange := testkeys.SoftKey(t)
 	origExchange := ykExchange
 	ykExchange = exchange
 	t.Cleanup(func() { ykExchange = origExchange })
