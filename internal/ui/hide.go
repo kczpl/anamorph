@@ -67,10 +67,14 @@ func newHidePanel(win fyne.Window) *hidePanel {
 	p.methodPw = newTab("PASSWORD", func() { p.setMethod(false) })
 	p.methodYk = newTab("YUBIKEY", func() { p.setMethod(true) })
 	p.methodPw.setActive(true)
-	methodRow := container.NewHBox(p.methodPw, smallText("·", colFaint), p.methodYk)
+	methodRow := container.NewHBox(
+		smallText("LOCK WITH", colDim),
+		hgap(14),
+		p.methodPw, smallText("·", colFaint), p.methodYk,
+	)
 
 	p.pwBox = container.NewVBox(
-		smallText("PASSWORD - OPTIONAL, ENCRYPTS", colDim),
+		smallText("OPTIONAL - ENCRYPTS THE MESSAGE", colDim),
 		vgap(8),
 		p.password,
 	)
@@ -95,8 +99,6 @@ func newHidePanel(win fyne.Window) *hidePanel {
 		vgap(8),
 		p.message,
 		vgap(22),
-		smallText("LOCK WITH", colDim),
-		vgap(10),
 		methodRow,
 		vgap(14),
 		container.NewStack(p.pwBox, p.ykBox),

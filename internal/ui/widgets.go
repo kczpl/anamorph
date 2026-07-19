@@ -33,10 +33,10 @@ func vgap(h float32) fyne.CanvasObject {
 	return r
 }
 
-// hline is a full-width horizontal rule.
-func hline(c color.Color) fyne.CanvasObject {
-	r := canvas.NewRectangle(c)
-	r.SetMinSize(fyne.NewSize(0, 1))
+// hgap is a fixed-width horizontal spacer.
+func hgap(w float32) fyne.CanvasObject {
+	r := canvas.NewRectangle(color.Transparent)
+	r.SetMinSize(fyne.NewSize(w, 0))
 	return r
 }
 

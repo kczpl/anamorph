@@ -55,9 +55,7 @@ func newUI(win fyne.Window) *ui {
 		subtitle,
 		vgap(28),
 		tabRow,
-		vgap(8),
-		hline(colFg),
-		vgap(24),
+		vgap(28),
 		panels,
 	)
 	u.root = container.New(layout.NewCustomPaddedLayout(48, 40, 64, 64), column)
