@@ -2,8 +2,6 @@
 
 ![go version](https://img.shields.io/github/go-mod/go-version/kczpl/anamorph)
 ![written in go](https://img.shields.io/badge/100%25-Go-00ADD8)
-![dependencies](https://img.shields.io/badge/dependencies-fyne_only-555555)
-![output](https://img.shields.io/badge/output-PNG-555555)
 
 Hide encrypted messages inside ordinary images.
 
