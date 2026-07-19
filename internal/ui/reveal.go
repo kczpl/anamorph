@@ -47,7 +47,7 @@ func newRevealPanel(win fyne.Window) *revealPanel {
 	p.root = container.NewVBox(
 		newDropZone(p.caption, choose),
 		vgap(22),
-		smallText("PASSWORD — IF ONE WAS SET", colDim),
+		smallText("PASSWORD - IF ONE WAS SET", colDim),
 		vgap(8),
 		p.password,
 		vgap(26),

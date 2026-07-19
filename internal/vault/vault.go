@@ -36,8 +36,8 @@ func MessageCapacity(bounds image.Rectangle) int {
 	return max(stego.Capacity(bounds)-crypt.Overhead, 0)
 }
 
-// normalize converts any decoded image — premultiplied, 16-bit, paletted,
-// grayscale or YCbCr — into a tightly packed 8-bit non-premultiplied NRGBA
+// normalize converts any decoded image - premultiplied, 16-bit, paletted,
+// grayscale or YCbCr - into a tightly packed 8-bit non-premultiplied NRGBA
 // canvas anchored at the origin, the only representation stego operates on.
 // an already-canonical NRGBA passes through untouched: round-tripping it
 // through color conversion could disturb the LSBs of translucent pixels.

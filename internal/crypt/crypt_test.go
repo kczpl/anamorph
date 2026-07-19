@@ -18,7 +18,7 @@ func TestSealOpenRoundTrip(t *testing.T) {
 		name, password, message string
 	}{
 		{"simple", "hunter2", "meet me at dawn"},
-		{"unicode", "zażółć-gęślą", "wiadomość — ünïcödé ✓ 秘密"},
+		{"unicode", "zażółć-gęślą", "wiadomość - ünïcödé ✓ 秘密"},
 		{"empty message", "pw", ""},
 		{"long message", "pw", strings.Repeat("all work and no play ", 5000)},
 		{"unicode password", "пароль🔑", "payload"},

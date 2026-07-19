@@ -11,7 +11,7 @@ import (
 )
 
 // macOS gets real native file panels, driven through the system osascript
-// binary — no extra dependencies. other platforms fall back to Fyne's
+// binary - no extra dependencies. other platforms fall back to Fyne's
 // built-in dialogs.
 const nativeDialogs = true
 

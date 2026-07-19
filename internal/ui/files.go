@@ -21,8 +21,8 @@ var (
 	revealExts = []string{".png"}
 )
 
-// chooseImage opens a file picker — the OS-native panel where available,
-// Fyne's dialog otherwise — and hands the picked file to onLoad.
+// chooseImage opens a file picker - the OS-native panel where available,
+// Fyne's dialog otherwise - and hands the picked file to onLoad.
 func chooseImage(win fyne.Window, exts []string, btn *outlineButton, status *canvas.Text, onLoad func(io.Reader, string)) {
 	if nativeDialogs {
 		btn.SetDisabled(true)
@@ -56,7 +56,7 @@ func chooseImage(win fyne.Window, exts []string, btn *outlineButton, status *can
 	d.Show()
 }
 
-// saveImage asks where to save img — native panel or Fyne dialog — writes it
+// saveImage asks where to save img - native panel or Fyne dialog - writes it
 // as PNG and reports the outcome: onSaved on success, cancellation or the
 // error on status otherwise. btn arrives disabled from the encrypt step and
 // is re-enabled once the dialog resolves.

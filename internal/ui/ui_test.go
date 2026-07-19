@@ -27,7 +27,7 @@ func newTestUI(t *testing.T) (*ui, fyne.Window) {
 	return u, w
 }
 
-// testUIRenders paints both tabs with the software renderer — a smoke test
+// testUIRenders paints both tabs with the software renderer - a smoke test
 // that the widget tree constructs and renders. set PREVIEW_DIR to also write
 // PNG snapshots for visual inspection.
 func TestUIRenders(t *testing.T) {
@@ -109,7 +109,7 @@ func TestHideLoadReaderShowsCapacity(t *testing.T) {
 		t.Fatal("cover image not stored")
 	}
 	// 50*40 px hold 746 payload bytes; minus the 53-byte crypt envelope.
-	if want := "PHOTO.PNG — FITS UP TO 693 B"; u.hide.caption.Text != want {
+	if want := "PHOTO.PNG - FITS UP TO 693 B"; u.hide.caption.Text != want {
 		t.Errorf("caption = %q, want %q", u.hide.caption.Text, want)
 	}
 }

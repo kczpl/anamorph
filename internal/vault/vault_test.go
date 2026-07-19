@@ -91,7 +91,7 @@ func TestPNGFileRoundTrip(t *testing.T) {
 
 // testJPEGCoverRoundTrip uses a JPEG-decoded cover (opaque YCbCr source),
 // mirroring the "hide in a photo" flow; the output PNG is fully opaque, so
-// png.Encode drops the alpha channel and image.Decode returns *image.RGBA —
+// png.Encode drops the alpha channel and image.Decode returns *image.RGBA -
 // normalization must still recover the exact hidden bits.
 func TestJPEGCoverRoundTrip(t *testing.T) {
 	const message, password = "z JPEG-a do PNG", "sekret"
@@ -138,7 +138,7 @@ func TestDecodeWrongPassword(t *testing.T) {
 
 func TestDecodeCleanImage(t *testing.T) {
 	// an image that never went through Encode must fail with a clean error
-	// from either layer — never a panic.
+	// from either layer - never a panic.
 	_, err := Decode(noisyImage(32, 32), "pw")
 	if !errors.Is(err, stego.ErrCorruptLength) && !errors.Is(err, crypt.ErrNotASecretPayload) {
 		t.Errorf("got %v, want ErrCorruptLength or ErrNotASecretPayload", err)

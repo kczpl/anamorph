@@ -26,7 +26,7 @@ func TestCapacity(t *testing.T) {
 	}{
 		{100, 100, 100*100*3/8 - 4},
 		{500, 500, 93746},
-		{1, 1, 0}, // 3 bits — not even a length prefix, clamped to 0
+		{1, 1, 0}, // 3 bits - not even a length prefix, clamped to 0
 		{4, 4, 2}, // 48 bits = 6 bytes - 4 prefix
 		{0, 0, 0},
 	}
@@ -45,7 +45,7 @@ func TestEmbedExtractRoundTrip(t *testing.T) {
 	}{
 		{"empty payload", 10, 10, []byte{}},
 		{"single byte", 10, 10, []byte{0xA5}},
-		{"text", 64, 64, []byte("hello, world — zażółć gęślą jaźń")},
+		{"text", 64, 64, []byte("hello, world - zażółć gęślą jaźń")},
 		{"exactly at capacity", 8, 8, bytes.Repeat([]byte{0xFF}, Capacity(image.Rect(0, 0, 8, 8)))},
 		{"all zero bits", 16, 16, make([]byte, 32)},
 	}

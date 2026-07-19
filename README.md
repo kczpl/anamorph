@@ -5,8 +5,6 @@
 
 Hide encrypted messages inside ordinary images.
 
-![anamorph screenshot](docs/screenshot.png)
-
 ## What it is
 
 A small desktop app. You give it an image and a message, it gives you back
@@ -16,7 +14,7 @@ password, it is just a picture.
 
 Everything is Go. The only dependency is [Fyne](https://fyne.io), the GUI
 toolkit. All cryptography and image handling comes straight from the Go
-standard library — no crypto packages, no image libraries, nothing else.
+standard library - no crypto packages, no image libraries, nothing else.
 
 ## How it works
 
@@ -32,6 +30,8 @@ standard library — no crypto packages, no image libraries, nothing else.
 A 500×500 image holds about 93 KB of message. The GCM tag doubles as
 wrong-password detection, so the app can tell you the password is wrong
 instead of printing garbage.
+
+![anamorph screenshot](docs/screenshot.png)
 
 ## Install
 
@@ -57,7 +57,7 @@ just install   # build and install into /Applications (macOS)
 
 `just package-mac` produces `dist/anamorph-macos.zip` with a universal
 macOS build (Apple Silicon + Intel). The app is ad-hoc signed but not
-notarized, so on first launch macOS will complain — either click
+notarized, so on first launch macOS will complain - either click
 **Open Anyway** in System Settings → Privacy & Security, or run
 `xattr -cr anamorph.app` once.
 
@@ -75,9 +75,17 @@ was one, read the message.
 
 ## Code layout
 
-- `internal/stego` — bits in, bits out. Hides a length-prefixed payload
+- `internal/stego` - bits in, bits out. Hides a length-prefixed payload
   in the image and gets it back.
-- `internal/crypt` — AES-256-GCM sealing and opening.
-- `internal/vault` — glues the two together, normalizes any decoded
+- `internal/crypt` - AES-256-GCM sealing and opening.
+- `internal/vault` - glues the two together, normalizes any decoded
   image to a clean NRGBA canvas first.
-- `internal/ui` — the Fyne interface. `main.go` just calls `ui.Run()`.
+- `internal/ui` - the Fyne interface. `main.go` just calls `ui.Run()`.
+
+## The name
+
+From [anamorphosis](https://en.wikipedia.org/wiki/Anamorphosis) - a distorted
+image that resolves into a clear picture only when viewed from the right
+angle or through the right device. Same idea here: to everyone else it is
+just a picture; look at it the right way - with the app and the password -
+and the message appears.

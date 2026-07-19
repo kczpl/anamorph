@@ -66,7 +66,7 @@ func newUI(win fyne.Window) *ui {
 	return u
 }
 
-// selectTab switches panels, wiping all state — secrets never survive a
+// selectTab switches panels, wiping all state - secrets never survive a
 // tab change.
 func (u *ui) selectTab(i int) {
 	if i == u.current {

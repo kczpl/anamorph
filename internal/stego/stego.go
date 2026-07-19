@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	channelsPerPixel = 3 // r, g, b — alpha stays untouched
+	channelsPerPixel = 3 // r, g, b - alpha stays untouched
 	lengthPrefixLen  = 4
 )
 

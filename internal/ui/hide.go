@@ -15,7 +15,7 @@ import (
 	"anamorph/internal/vault"
 )
 
-const hideCaption = "DROP AN IMAGE HERE — PNG OR JPEG"
+const hideCaption = "DROP AN IMAGE HERE - PNG OR JPEG"
 
 // hidePanel encrypts a message and embeds it in a chosen cover image.
 type hidePanel struct {
@@ -49,7 +49,7 @@ func newHidePanel(win fyne.Window) *hidePanel {
 		vgap(8),
 		p.message,
 		vgap(22),
-		smallText("PASSWORD — OPTIONAL, ENCRYPTS", colDim),
+		smallText("PASSWORD - OPTIONAL, ENCRYPTS", colDim),
 		vgap(8),
 		p.password,
 		vgap(26),
@@ -71,7 +71,7 @@ func (p *hidePanel) loadReader(r io.Reader, name string) {
 	p.cover = img
 	capacity := vault.MessageCapacity(img.Bounds())
 	setText(p.status, "", colDim)
-	setText(p.caption, fmt.Sprintf("%s — FITS UP TO %s", strings.ToUpper(name), formatSize(capacity)), colFg)
+	setText(p.caption, fmt.Sprintf("%s - FITS UP TO %s", strings.ToUpper(name), formatSize(capacity)), colFg)
 }
 
 // save encrypts in the background, then hands the result to saveImage,
