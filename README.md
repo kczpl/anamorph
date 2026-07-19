@@ -17,6 +17,15 @@ and [piv-go](https://github.com/go-piv/piv-go) to talk to a YubiKey. All
 cryptography and image handling comes straight from the Go standard
 library - no crypto packages, no image libraries, nothing else.
 
+## Dependencies
+
+- [Fyne](https://fyne.io) - the GUI toolkit
+- [piv-go](https://github.com/go-piv/piv-go) - PIV smartcard access,
+  used only for the YubiKey lock
+
+That is the whole list. Everything else - AES, ECDH, HKDF, PBKDF2, PNG
+and JPEG handling - is the Go standard library.
+
 ## How it works
 
 - The message is encrypted with AES-256-GCM. The key comes from your
