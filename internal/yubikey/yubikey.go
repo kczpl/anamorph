@@ -73,8 +73,10 @@ func Probe() Info {
 
 // setup generates the anamorph key if the plugged yubikey does not have
 // one yet, and returns the resulting state; it is idempotent. the key is
-// created with no pin and no touch requirement: plugging the yubikey in is
-// the whole credential. setup never overwrites a slot that holds a key.
+// created with no pin, but a touch is required for every decryption:
+// possession of the plugged-in key is not enough, the holder must also be
+// physically present to tap it. setup never overwrites a slot that holds a
+// key.
 func Setup() (Info, error) {
 	var info Info
 	err := withCard(func(yk *piv.YubiKey) error {
@@ -89,7 +91,7 @@ func Setup() (Info, error) {
 		pub, err := yk.GenerateKey(piv.DefaultManagementKey, slot, piv.Key{
 			Algorithm:   piv.AlgorithmEC256,
 			PINPolicy:   piv.PINPolicyNever,
-			TouchPolicy: piv.TouchPolicyNever,
+			TouchPolicy: piv.TouchPolicyAlways,
 		})
 		if err != nil {
 			var authErr piv.AuthErr
@@ -157,7 +159,7 @@ func Import(p *Pair) (Info, error) {
 		}
 		if err := yk.SetPrivateKeyInsecure(piv.DefaultManagementKey, slot, p.Key, piv.Key{
 			PINPolicy:   piv.PINPolicyNever,
-			TouchPolicy: piv.TouchPolicyNever,
+			TouchPolicy: piv.TouchPolicyAlways,
 		}); err != nil {
 			var authErr piv.AuthErr
 			if errors.As(err, &authErr) {
@@ -179,7 +181,9 @@ func Import(p *Pair) (Info, error) {
 }
 
 // exchange performs the yubikey's half of the ECDH agreement for a sealed
-// payload: the one operation that needs the hardware.
+// payload: the one operation that needs the hardware. the key is set up
+// with a touch policy, so the card blocks here until the user taps it -
+// callers should tell the user to touch the blinking yubikey.
 func Exchange(ephemeral *ecdh.PublicKey) ([]byte, error) {
 	var shared []byte
 	err := withCard(func(yk *piv.YubiKey) error {

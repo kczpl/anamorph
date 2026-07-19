@@ -39,8 +39,9 @@ and JPEG handling - is the Go standard library.
 - Instead of a password you can lock a message to a YubiKey. The app
   generates a P-256 key inside the YubiKey's PIV applet - it never leaves
   the hardware - and encrypts to its public half (ECDH plus HKDF-SHA256,
-  same AES-256-GCM). Only that YubiKey, physically plugged in, can
-  decrypt the image.
+  same AES-256-GCM). Only that YubiKey can decrypt the image, and only
+  with a physical touch: the key blinks and the message stays sealed until
+  you tap it, so a lost or stolen key cannot silently open anything.
 - Two YubiKeys can be paired: the app generates one shared key and
   writes it to both, so either key opens the same images. Pair once,
   hand one key to the other person, and you have a hardware-locked

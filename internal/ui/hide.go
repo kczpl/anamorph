@@ -80,8 +80,8 @@ func newHidePanel(win fyne.Window) *hidePanel {
 	)
 	p.ykStatus = smallText("", colDim)
 	p.ykName = smallText("", colDim)
-	p.actSetup = newTab("SET UP THIS YUBIKEY", p.ykSetupClick)
-	p.actPair = newTab("PAIR TWO YUBIKEYS", p.startPairing)
+	p.actSetup = newTab("SET UP THIS KEY", p.ykSetupClick)
+	p.actPair = newTab("PAIR TWO KEYS", p.startPairing)
 	p.actReplace = newTab("REPLACE", func() {
 		if p.pairing != nil {
 			p.pairing.confirmReplace()
@@ -188,7 +188,7 @@ func (p *hidePanel) ykUpdate(info yubikey.Info) {
 		p.setYkActions(p.actPair)
 	case yubikey.NoKey:
 		setText(p.ykStatus, fmt.Sprintf("NEW YUBIKEY %d - CHOOSE A SETUP", info.Serial), colFg)
-		setText(p.ykName, "", colDim)
+		setText(p.ykName, "SET UP = THIS KEY ALONE · PAIR = TWO KEYS, GIVE ONE AWAY", colDim)
 		p.setYkActions(p.actSetup, p.actPair)
 	case yubikey.Ready:
 		setText(p.ykStatus, fmt.Sprintf("YUBIKEY %d READY", info.Serial), colFg)
@@ -204,7 +204,9 @@ func (p *hidePanel) ykSetupClick() {
 		return
 	}
 	p.settingUp = true
-	setText(p.ykStatus, "SETTING UP - KEEP IT PLUGGED IN…", colDim)
+	// signing the marker certificate uses the new touch-protected key, so
+	// the card blinks for a tap partway through setup.
+	setText(p.ykStatus, "SETTING UP - TOUCH THE KEY WHEN IT BLINKS…", colDim)
 	setText(p.ykName, "", colDim)
 	p.setYkActions()
 	session := p.ykSession

@@ -147,7 +147,13 @@ func (p *revealPanel) reveal() {
 		return
 	}
 	p.revealBtn.SetDisabled(true)
-	setText(p.status, "DECRYPTING…", colDim)
+	// a yubikey payload blocks on a physical touch inside decode; say so
+	// instead of a bare "decrypting" while the card sits there blinking.
+	if needsYk, err := vault.NeedsYubiKey(p.payload); err == nil && needsYk {
+		setText(p.status, "TOUCH YOUR YUBIKEY…", colDim)
+	} else {
+		setText(p.status, "DECRYPTING…", colDim)
+	}
 	// snapshot on the UI thread: the fields may change while we decrypt.
 	img, payload, password := p.loaded, p.payload, p.password.Text
 	session := p.session

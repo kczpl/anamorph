@@ -162,7 +162,7 @@ func TestHideNewYubiKeyOffersChoices(t *testing.T) {
 	if !h.settingUp {
 		t.Error("setup not marked as running")
 	}
-	if want := "SETTING UP - KEEP IT PLUGGED IN…"; h.ykStatus.Text != want {
+	if want := "SETTING UP - TOUCH THE KEY WHEN IT BLINKS…"; h.ykStatus.Text != want {
 		t.Errorf("ykStatus = %q, want %q", h.ykStatus.Text, want)
 	}
 	waitCalls(t, &f.setupCalls, 1)
