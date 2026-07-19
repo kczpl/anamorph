@@ -13,18 +13,9 @@ Anyone with the PNG and the password can read the message. Without the
 password, it is just a picture.
 
 Everything is Go. Two dependencies: [Fyne](https://fyne.io) for the GUI
-and [piv-go](https://github.com/go-piv/piv-go) to talk to a YubiKey. All
-cryptography and image handling comes straight from the Go standard
-library - no crypto packages, no image libraries, nothing else.
-
-## Dependencies
-
-- [Fyne](https://fyne.io) - the GUI toolkit
-- [piv-go](https://github.com/go-piv/piv-go) - PIV smartcard access,
-  used only for the YubiKey lock
-
-That is the whole list. Everything else - AES, ECDH, HKDF, PBKDF2, PNG
-and JPEG handling - is the Go standard library.
+and [piv-go](https://github.com/go-piv/piv-go) for PIV smartcard access,
+used only for the YubiKey lock. Everything else - AES, ECDH, HKDF,
+PBKDF2, PNG and JPEG handling - is the Go standard library.
 
 ## How it works
 

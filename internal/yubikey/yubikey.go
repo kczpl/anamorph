@@ -215,7 +215,7 @@ func withCard(fn func(*piv.YubiKey) error) error {
 	}
 	name := ""
 	for _, c := range cards {
-		if strings.Contains(strings.ToLower(c), "yubikey") {
+		if isYubiKey(c) {
 			name = c
 			break
 		}
@@ -229,6 +229,11 @@ func withCard(fn func(*piv.YubiKey) error) error {
 	}
 	defer yk.Close()
 	return fn(yk)
+}
+
+// isYubiKey reports whether a pc/sc reader name belongs to a yubikey.
+func isYubiKey(card string) bool {
+	return strings.Contains(strings.ToLower(card), "yubikey")
 }
 
 func probeCard(yk *piv.YubiKey) Info {

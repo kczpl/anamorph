@@ -23,6 +23,7 @@ const hideCaption = "DROP AN IMAGE HERE - PNG OR JPEG"
 type hidePanel struct {
 	root fyne.CanvasObject
 	win  fyne.Window
+	yk   *ykHub
 
 	cover    image.Image
 	caption  *canvas.Text
@@ -52,8 +53,8 @@ type hidePanel struct {
 	actCancel  *tab
 }
 
-func newHidePanel(win fyne.Window) *hidePanel {
-	p := &hidePanel{win: win}
+func newHidePanel(win fyne.Window, yk *ykHub) *hidePanel {
+	p := &hidePanel{win: win, yk: yk}
 	p.caption = smallText(hideCaption, colDim)
 	p.message = newArea()
 	p.password = widget.NewPasswordEntry()
@@ -150,7 +151,7 @@ func (p *hidePanel) startYubiKey() {
 	setText(p.ykStatus, "PLUG IN A YUBIKEY", colDim)
 	setText(p.ykName, "", colDim)
 	p.setYkActions(p.actPair)
-	p.stopWatch = watchYubiKey(p.ykUpdate)
+	p.stopWatch = p.yk.watch(p.ykUpdate)
 }
 
 // stopYubiKey ends the watch and forgets everything learned from the card,

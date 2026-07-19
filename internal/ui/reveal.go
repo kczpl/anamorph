@@ -26,6 +26,7 @@ const (
 type revealPanel struct {
 	root fyne.CanvasObject
 	win  fyne.Window
+	yk   *ykHub
 
 	loaded    image.Image
 	payload   []byte // sniffed ahead of time; nil until extraction succeeds
@@ -42,8 +43,8 @@ type revealPanel struct {
 	stopWatch func()
 }
 
-func newRevealPanel(win fyne.Window) *revealPanel {
-	p := &revealPanel{win: win}
+func newRevealPanel(win fyne.Window, yk *ykHub) *revealPanel {
+	p := &revealPanel{win: win, yk: yk}
 	p.caption = smallText(revealCaption, colDim)
 	p.password = widget.NewPasswordEntry()
 	p.status = smallText("", colDim)
@@ -128,7 +129,7 @@ func (p *revealPanel) showYubiKey() {
 	p.ykBox.Show()
 	p.password.SetText("")
 	setText(p.ykStatus, ykPlugCaption, colDim)
-	p.stopWatch = watchYubiKey(func(info yubikey.Info) {
+	p.stopWatch = p.yk.watch(func(info yubikey.Info) {
 		switch info.Status {
 		case yubikey.NoCard:
 			setText(p.ykStatus, ykPlugCaption, colDim)

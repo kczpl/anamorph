@@ -1,25 +1,12 @@
 package crypt
 
 import (
-	"crypto/ecdh"
-	"crypto/rand"
 	"errors"
 	"strings"
 	"testing"
-)
 
-// softKey stands in for a yubikey: a software P-256 key whose ECDH half
-// exercises the exact same code path the hardware provides.
-func softKey(t *testing.T) (*ecdh.PrivateKey, Exchange) {
-	t.Helper()
-	priv, err := ecdh.P256().GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatalf("GenerateKey: %v", err)
-	}
-	return priv, func(ephemeral *ecdh.PublicKey) ([]byte, error) {
-		return priv.ECDH(ephemeral)
-	}
-}
+	"anamorph/internal/testkeys"
+)
 
 func TestSealToOpenWithRoundTrip(t *testing.T) {
 	tests := []struct {
@@ -30,7 +17,7 @@ func TestSealToOpenWithRoundTrip(t *testing.T) {
 		{"empty message", ""},
 		{"long message", strings.Repeat("all work and no play ", 5000)},
 	}
-	priv, exchange := softKey(t)
+	priv, exchange := testkeys.SoftKey(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			payload, err := SealTo(priv.PublicKey(), tt.message)
@@ -52,8 +39,8 @@ func TestSealToOpenWithRoundTrip(t *testing.T) {
 }
 
 func TestOpenWithWrongKey(t *testing.T) {
-	priv, _ := softKey(t)
-	_, wrongExchange := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
+	_, wrongExchange := testkeys.SoftKey(t)
 	payload, err := SealTo(priv.PublicKey(), "msg")
 	if err != nil {
 		t.Fatalf("SealTo: %v", err)
@@ -80,7 +67,7 @@ func TestOpenWithCorruptPayload(t *testing.T) {
 		{"truncated below header", func(p []byte) []byte { return p[:40] }, ErrCorruptPayload},
 		{"empty payload", func(p []byte) []byte { return nil }, ErrNotASecretPayload},
 	}
-	priv, exchange := softKey(t)
+	priv, exchange := testkeys.SoftKey(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			payload, err := SealTo(priv.PublicKey(), "msg")
@@ -97,7 +84,7 @@ func TestOpenWithCorruptPayload(t *testing.T) {
 func TestOpenRejectsYubiKeyPayload(t *testing.T) {
 	// the password path must route a yubikey payload to the right error,
 	// not report a wrong password.
-	priv, _ := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
 	payload, err := SealTo(priv.PublicKey(), "msg")
 	if err != nil {
 		t.Fatalf("SealTo: %v", err)
@@ -108,7 +95,7 @@ func TestOpenRejectsYubiKeyPayload(t *testing.T) {
 }
 
 func TestNeedsYubiKey(t *testing.T) {
-	priv, _ := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
 	ykPayload, err := SealTo(priv.PublicKey(), "msg")
 	if err != nil {
 		t.Fatalf("SealTo: %v", err)
@@ -134,7 +121,7 @@ func TestNeedsYubiKey(t *testing.T) {
 }
 
 func TestSealToIsRandomized(t *testing.T) {
-	priv, _ := softKey(t)
+	priv, _ := testkeys.SoftKey(t)
 	a, _ := SealTo(priv.PublicKey(), "msg")
 	b, _ := SealTo(priv.PublicKey(), "msg")
 	if string(a) == string(b) {

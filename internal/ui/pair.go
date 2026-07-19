@@ -69,7 +69,7 @@ func (f *pairFlow) update(info yubikey.Info) {
 			f.show(colDim, "PAIR: PLUG IN THE FIRST YUBIKEY", "")
 		}
 		p.setYkActions(p.actCancel)
-	case f.firstDone && (info.Serial != 0 && info.Serial == f.firstSerial || info.Name == f.pair.Name):
+	case f.firstDone && ((info.Serial != 0 && info.Serial == f.firstSerial) || info.Name == f.pair.Name):
 		// matched by serial or by the pair's unique key name; a zero
 		// serial (unreadable) must not make every card look like a twin.
 		f.show(colDim, "THIS YUBIKEY IS ALREADY PAIRED - PLUG IN THE OTHER ONE", "")
