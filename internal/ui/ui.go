@@ -5,11 +5,15 @@
 package ui
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
+
+	"anamorph/internal/yubikey"
 )
 
 // run builds the main window and blocks until the app exits.
@@ -21,6 +25,8 @@ func Run() {
 	u := newUI(w)
 	w.SetContent(u.root)
 	w.SetOnDropped(u.handleDrop)
+	stop := watchYubiKey(u.ykBadgeUpdate)
+	defer stop()
 	w.ShowAndRun()
 }
 
@@ -33,6 +39,12 @@ type ui struct {
 	tabHide   *tab
 	tabReveal *tab
 	current   int
+
+	// the presence badge: a green dot and serial shown while a yubikey
+	// with an anamorph key is plugged in, invisible otherwise.
+	ykBadge  *fyne.Container
+	ykSerial *canvas.Text
+	tabRow   *fyne.Container // refreshed when the badge toggles, so the row re-lays out
 }
 
 func newUI(win fyne.Window) *ui {
@@ -46,7 +58,10 @@ func newUI(win fyne.Window) *ui {
 	subtitle := smallText("hide messages inside images", colDim)
 
 	dot := smallText("·", colFaint)
-	tabRow := container.NewHBox(u.tabHide, dot, u.tabReveal)
+	u.ykSerial = smallText("", colDim)
+	u.ykBadge = container.NewHBox(smallText("●", colOk), hgap(8), u.ykSerial)
+	u.ykBadge.Hide()
+	u.tabRow = container.NewHBox(u.tabHide, dot, u.tabReveal, layout.NewSpacer(), u.ykBadge)
 
 	panels := container.NewStack(u.hide.root, u.reveal.root)
 	column := container.NewVBox(
@@ -54,7 +69,7 @@ func newUI(win fyne.Window) *ui {
 		vgap(2),
 		subtitle,
 		vgap(28),
-		tabRow,
+		u.tabRow,
 		vgap(28),
 		panels,
 	)
@@ -82,6 +97,19 @@ func (u *ui) selectTab(i int) {
 		u.hide.root.Hide()
 		u.reveal.root.Show()
 	}
+}
+
+// ykBadgeUpdate drives the presence badge next to the tabs. it only ever
+// lights up for a yubikey that carries an anamorph key; anything less
+// shows nothing at all.
+func (u *ui) ykBadgeUpdate(info yubikey.Info) {
+	if info.Status != yubikey.Ready {
+		u.ykBadge.Hide()
+	} else {
+		setText(u.ykSerial, fmt.Sprintf("YUBIKEY %d", info.Serial), colDim)
+		u.ykBadge.Show()
+	}
+	u.tabRow.Refresh()
 }
 
 // handleDrop routes files dropped on the window to the visible panel.

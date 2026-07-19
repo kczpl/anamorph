@@ -18,6 +18,7 @@ var (
 	colFaint  = color.NRGBA{R: 0x55, G: 0x55, B: 0x55, A: 0xff}
 	colBorder = color.NRGBA{R: 0x3a, G: 0x3a, B: 0x3a, A: 0xff}
 	colDanger = color.NRGBA{R: 0xd8, G: 0x6a, B: 0x6a, A: 0xff}
+	colOk     = color.NRGBA{R: 0x6a, G: 0xd8, B: 0x8a, A: 0xff}
 )
 
 // noirTheme forces a monochrome dark look and monospace type everywhere,

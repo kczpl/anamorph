@@ -343,6 +343,33 @@ func TestRevealYubiKeyShape(t *testing.T) {
 	}
 }
 
+// testYubiKeyBadge pins the header presence dot: visible only while a
+// yubikey carrying an anamorph key is plugged in.
+func TestYubiKeyBadge(t *testing.T) {
+	fakeYubiKey(t)
+	u, _ := newTestUI(t)
+
+	if u.ykBadge.Visible() {
+		t.Error("badge visible before any yubikey was seen")
+	}
+	priv, _ := softKey(t)
+	u.ykBadgeUpdate(yubikey.Info{Status: yubikey.Ready, Serial: 32054623, Public: priv.PublicKey(), Name: "anamorph 2026-07-19 3f9a1c"})
+	if !u.ykBadge.Visible() {
+		t.Error("badge hidden with a ready yubikey plugged in")
+	}
+	if want := "YUBIKEY 32054623"; u.ykSerial.Text != want {
+		t.Errorf("ykSerial = %q, want %q", u.ykSerial.Text, want)
+	}
+	u.ykBadgeUpdate(yubikey.Info{Status: yubikey.NoKey, Serial: 32054623})
+	if u.ykBadge.Visible() {
+		t.Error("badge visible for a yubikey without an anamorph key")
+	}
+	u.ykBadgeUpdate(yubikey.Info{Status: yubikey.NoCard})
+	if u.ykBadge.Visible() {
+		t.Error("badge visible with no yubikey at all")
+	}
+}
+
 // softKey stands in for a yubikey: a software P-256 key whose ECDH half
 // exercises the exact same code path the hardware provides.
 func softKey(t *testing.T) (*ecdh.PrivateKey, func(*ecdh.PublicKey) ([]byte, error)) {
