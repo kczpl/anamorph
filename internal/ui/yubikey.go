@@ -14,6 +14,8 @@ var (
 	ykWatch    = yubikey.Watch
 	ykSetup    = yubikey.Setup
 	ykExchange = yubikey.Exchange
+	ykNewPair  = yubikey.NewPair
+	ykImport   = yubikey.Import
 )
 
 const ykPollInterval = 2 * time.Second

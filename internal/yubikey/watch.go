@@ -43,7 +43,7 @@ func Watch(interval time.Duration, onChange func(Info)) (stop func()) {
 }
 
 func (a Info) equal(b Info) bool {
-	if a.Status != b.Status || a.Serial != b.Serial {
+	if a.Status != b.Status || a.Serial != b.Serial || a.Name != b.Name {
 		return false
 	}
 	if (a.Public == nil) != (b.Public == nil) {

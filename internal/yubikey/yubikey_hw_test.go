@@ -48,3 +48,58 @@ func TestHardwareRoundTrip(t *testing.T) {
 		t.Errorf("round trip mismatch: got %q, want %q", got, message)
 	}
 }
+
+// testHardwareImportRoundTrip exercises the pairing path on a real card:
+// Import REPLACES ANY EXISTING ANAMORPH KEY on the plugged-in yubikey with
+// a fresh software-generated pair key, then the same payload is opened both
+// through the hardware and through the software twin - proving the two are
+// interchangeable. it only runs when explicitly requested.
+func TestHardwareImportRoundTrip(t *testing.T) {
+	if os.Getenv("ANAMORPH_HW_TEST") == "" {
+		t.Skip("set ANAMORPH_HW_TEST=1 to run against a real yubikey (writes to the card)")
+	}
+	if Probe().Status == NoCard {
+		t.Skip("no yubikey plugged in")
+	}
+
+	pair, err := NewPair()
+	if err != nil {
+		t.Fatalf("NewPair: %v", err)
+	}
+	info, err := Import(pair)
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if info.Status != Ready || info.Public == nil {
+		t.Fatalf("Import left status=%d, want Ready with a public key", info.Status)
+	}
+	if info.Name != pair.Name {
+		t.Errorf("card reports name %q, want %q", info.Name, pair.Name)
+	}
+	t.Logf("yubikey %d carries %q", info.Serial, info.Name)
+
+	const message = "twins say hello"
+	payload, err := crypt.SealTo(info.Public, message)
+	if err != nil {
+		t.Fatalf("SealTo: %v", err)
+	}
+	got, err := crypt.OpenWith(Exchange, payload)
+	if err != nil {
+		t.Fatalf("OpenWith via hardware: %v", err)
+	}
+	if got != message {
+		t.Errorf("hardware twin: got %q, want %q", got, message)
+	}
+
+	soft, err := pair.Key.ECDH()
+	if err != nil {
+		t.Fatalf("ECDH convert: %v", err)
+	}
+	got, err = crypt.OpenWith(soft.ECDH, payload)
+	if err != nil {
+		t.Fatalf("OpenWith via software twin: %v", err)
+	}
+	if got != message {
+		t.Errorf("software twin: got %q, want %q", got, message)
+	}
+}

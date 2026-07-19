@@ -9,9 +9,12 @@ import (
 	"crypto"
 	"crypto/ecdh"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"errors"
 	"math/big"
 	"strings"
@@ -28,6 +31,7 @@ const (
 	slotFirst = 0x82
 	slotLast  = 0x95
 	markerCN  = "anamorph"
+	pairKind  = "pair"
 )
 
 type Status int
@@ -43,6 +47,7 @@ type Info struct {
 	Status Status
 	Serial uint32
 	Public *ecdh.PublicKey // the recipient key to seal to; set when Ready
+	Name   string          // the key's display name from its marker certificate
 }
 
 var (
@@ -93,7 +98,74 @@ func Setup() (Info, error) {
 			}
 			return err
 		}
-		cert, err := markerCert(yk, slot, pub)
+		name, err := keyName("", pub, time.Now())
+		if err != nil {
+			return err
+		}
+		cert, err := markerCert(yk, slot, pub, name)
+		if err != nil {
+			return err
+		}
+		if err := yk.SetCertificate(piv.DefaultManagementKey, slot, cert); err != nil {
+			return err
+		}
+		info = probeCard(yk)
+		return nil
+	})
+	return info, err
+}
+
+// pair is the shared identity written to two (or more) yubikeys during
+// pairing: a software-generated key and its display name. every card that
+// receives it becomes an interchangeable twin - any of them opens images
+// sealed to the pair. the key exists in host memory only for the duration
+// of the ceremony; go offers no guaranteed wiping, so the caller should
+// simply let it fall out of scope as soon as the last card is written.
+type Pair struct {
+	Key  *ecdsa.PrivateKey
+	Name string
+}
+
+// newPair generates the software key a pairing ceremony will import into
+// each yubikey. unlike Setup, the private half is briefly outside hardware -
+// that is the price of having the same key on two cards.
+func NewPair() (*Pair, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	name, err := keyName(pairKind, &key.PublicKey, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	return &Pair{Key: key, Name: name}, nil
+}
+
+// import writes the pair's key into the plugged-in yubikey, making it one
+// of the twins. an existing anamorph key on the card is replaced in place -
+// callers must get the user's explicit go-ahead first, since that orphans
+// every image sealed to the old key - but slots owned by other software are
+// never touched.
+func Import(p *Pair) (Info, error) {
+	var info Info
+	err := withCard(func(yk *piv.YubiKey) error {
+		slot, _, ok := findKey(yk)
+		if !ok {
+			if slot, ok = freeSlot(yk); !ok {
+				return ErrNoFreeSlot
+			}
+		}
+		if err := yk.SetPrivateKeyInsecure(piv.DefaultManagementKey, slot, p.Key, piv.Key{
+			PINPolicy:   piv.PINPolicyNever,
+			TouchPolicy: piv.TouchPolicyNever,
+		}); err != nil {
+			var authErr piv.AuthErr
+			if errors.As(err, &authErr) {
+				return ErrLocked
+			}
+			return err
+		}
+		cert, err := softMarkerCert(p)
 		if err != nil {
 			return err
 		}
@@ -164,9 +236,35 @@ func probeCard(yk *piv.YubiKey) Info {
 		if pub, err := certECDH(cert); err == nil {
 			info.Status = Ready
 			info.Public = pub
+			info.Name = cert.Subject.CommonName
 		}
 	}
 	return info
+}
+
+// keyName builds the display name stored in a key's marker certificate:
+// the app name, an optional kind, the creation date and a short fingerprint
+// of the public key - e.g. "anamorph pair 2026-07-19 3f9a1c". piv tools
+// show the certificate subject, so a key found on a yubikey months later
+// explains where it came from; paired twins carry the identical name.
+func keyName(kind string, pub crypto.PublicKey, now time.Time) (string, error) {
+	der, err := x509.MarshalPKIXPublicKey(pub)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(der)
+	parts := []string{markerCN}
+	if kind != "" {
+		parts = append(parts, kind)
+	}
+	parts = append(parts, now.Format("2006-01-02"), hex.EncodeToString(sum[:3]))
+	return strings.Join(parts, " "), nil
+}
+
+// isMarker recognizes anamorph marker certificates by subject: the bare
+// legacy name or any name it prefixes.
+func isMarker(cn string) bool {
+	return cn == markerCN || strings.HasPrefix(cn, markerCN+" ")
 }
 
 // findKey scans the retired slots for anamorph's marker certificate.
@@ -177,7 +275,7 @@ func findKey(yk *piv.YubiKey) (piv.Slot, *x509.Certificate, bool) {
 			continue
 		}
 		cert, err := yk.Certificate(slot)
-		if err != nil || cert.Subject.CommonName != markerCN {
+		if err != nil || !isMarker(cert.Subject.CommonName) {
 			continue
 		}
 		return slot, cert, true
@@ -210,10 +308,22 @@ func freeSlot(yk *piv.YubiKey) (piv.Slot, bool) {
 	return piv.Slot{}, false
 }
 
-// markerCert builds the self-signed certificate that marks a slot as
-// anamorph's and carries its public key. it is signed by the hardware key
-// itself; its only job is to be found again on the next plug.
-func markerCert(yk *piv.YubiKey, slot piv.Slot, pub crypto.PublicKey) (*x509.Certificate, error) {
+// markerTemplate is the certificate shape shared by both signing paths:
+// its only jobs are to be found again on the next plug and to say, via its
+// subject, what the key is and where it came from.
+func markerTemplate(name string, now time.Time) *x509.Certificate {
+	return &x509.Certificate{
+		SerialNumber: big.NewInt(now.Unix()),
+		Subject:      pkix.Name{CommonName: name},
+		NotBefore:    now,
+		NotAfter:     now.AddDate(100, 0, 0),
+	}
+}
+
+// markerCert builds the marker certificate for a key generated on the
+// card, signed by the hardware key itself - the private half is not
+// available anywhere else.
+func markerCert(yk *piv.YubiKey, slot piv.Slot, pub crypto.PublicKey, name string) (*x509.Certificate, error) {
 	priv, err := yk.PrivateKey(slot, pub, piv.KeyAuth{PINPolicy: piv.PINPolicyNever})
 	if err != nil {
 		return nil, err
@@ -222,14 +332,19 @@ func markerCert(yk *piv.YubiKey, slot piv.Slot, pub crypto.PublicKey) (*x509.Cer
 	if !ok {
 		return nil, errors.New("yubikey: generated key cannot sign")
 	}
-	now := time.Now()
-	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(now.Unix()),
-		Subject:      pkix.Name{CommonName: markerCN},
-		NotBefore:    now,
-		NotAfter:     now.AddDate(100, 0, 0),
-	}
+	tmpl := markerTemplate(name, time.Now())
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, pub, signer)
+	if err != nil {
+		return nil, err
+	}
+	return x509.ParseCertificate(der)
+}
+
+// softMarkerCert builds the marker certificate for a pair key, signed in
+// software: during the ceremony the private key is still in memory.
+func softMarkerCert(p *Pair) (*x509.Certificate, error) {
+	tmpl := markerTemplate(p.Name, time.Now())
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &p.Key.PublicKey, p.Key)
 	if err != nil {
 		return nil, err
 	}

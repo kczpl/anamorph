@@ -135,7 +135,7 @@ func (p *revealPanel) showYubiKey() {
 		case yubikey.NoKey:
 			setText(p.ykStatus, "THIS YUBIKEY HAS NO ANAMORPH KEY - TRY ANOTHER", colDanger)
 		case yubikey.Ready:
-			setText(p.ykStatus, fmt.Sprintf("YUBIKEY %d DETECTED", info.Serial), colFg)
+			setText(p.ykStatus, fmt.Sprintf("YUBIKEY %d DETECTED - %s", info.Serial, strings.ToUpper(info.Name)), colFg)
 		}
 	})
 }

@@ -31,17 +31,25 @@ type hidePanel struct {
 	saveBtn  *outlineButton
 	status   *canvas.Text
 
-	// lock method state: the password box or the yubikey status line.
+	// lock method state: the password box or the yubikey status area.
 	methodPw  *tab
 	methodYk  *tab
 	pwBox     *fyne.Container
 	ykBox     *fyne.Container
 	ykStatus  *canvas.Text
-	yubikey   bool // true while the yubikey method is selected
+	ykName    *canvas.Text    // key name, or a detail line during pairing
+	ykActions *fyne.Container // contextual row of small action links
+	yubikey   bool            // true while the yubikey method is selected
 	ykInfo    yubikey.Info
 	ykSession int // invalidates in-flight yubikey goroutines
 	stopWatch func()
 	settingUp bool
+	pairing   *pairFlow // non-nil while the pairing ceremony runs
+
+	actSetup   *tab
+	actPair    *tab
+	actReplace *tab
+	actCancel  *tab
 }
 
 func newHidePanel(win fyne.Window) *hidePanel {
@@ -67,7 +75,17 @@ func newHidePanel(win fyne.Window) *hidePanel {
 		p.password,
 	)
 	p.ykStatus = smallText("", colDim)
-	p.ykBox = container.NewVBox(vgap(4), p.ykStatus)
+	p.ykName = smallText("", colDim)
+	p.actSetup = newTab("SET UP THIS YUBIKEY", p.ykSetupClick)
+	p.actPair = newTab("PAIR TWO YUBIKEYS", p.startPairing)
+	p.actReplace = newTab("REPLACE", func() {
+		if p.pairing != nil {
+			p.pairing.confirmReplace()
+		}
+	})
+	p.actCancel = newTab("CANCEL", p.cancelPairing)
+	p.ykActions = container.NewHBox()
+	p.ykBox = container.NewVBox(vgap(4), p.ykStatus, vgap(8), p.ykName, vgap(12), p.ykActions)
 	p.ykBox.Hide()
 
 	p.root = container.NewVBox(
@@ -124,14 +142,17 @@ func (p *hidePanel) setMethod(yk bool) {
 	}
 }
 
-// startYubiKey begins watching for a yubikey and drives the status line.
+// startYubiKey begins watching for a yubikey and drives the status area.
 func (p *hidePanel) startYubiKey() {
 	p.ykSession++
 	setText(p.ykStatus, "PLUG IN A YUBIKEY", colDim)
+	setText(p.ykName, "", colDim)
+	p.setYkActions(p.actPair)
 	p.stopWatch = watchYubiKey(p.ykUpdate)
 }
 
-// stopYubiKey ends the watch and forgets everything learned from the card.
+// stopYubiKey ends the watch and forgets everything learned from the card,
+// including a half-finished pairing ceremony.
 func (p *hidePanel) stopYubiKey() {
 	if p.stopWatch != nil {
 		p.stopWatch()
@@ -139,32 +160,51 @@ func (p *hidePanel) stopYubiKey() {
 	}
 	p.ykSession++
 	p.settingUp = false
+	p.pairing = nil
 	p.ykInfo = yubikey.Info{}
 	setText(p.ykStatus, "", colDim)
+	setText(p.ykName, "", colDim)
+	p.setYkActions()
 }
 
-// ykUpdate reflects a new yubikey state. a plugged-in key that was never
-// set up is set up on the spot: the user just plugs it in and waits a
-// moment.
+// ykUpdate reflects a new yubikey state. a new key offers a choice - set it
+// up for this computer alone, or pair two keys - instead of silently
+// writing to the card.
 func (p *hidePanel) ykUpdate(info yubikey.Info) {
 	p.ykInfo = info
-	switch info.Status {
-	case yubikey.NoCard:
-		setText(p.ykStatus, "PLUG IN A YUBIKEY", colDim)
-	case yubikey.NoKey:
-		p.ykSetup()
-	case yubikey.Ready:
-		setText(p.ykStatus, fmt.Sprintf("YUBIKEY %d READY - ONLY IT UNLOCKS THIS IMAGE", info.Serial), colFg)
+	if p.pairing != nil {
+		p.pairing.update(info)
+		return
 	}
-}
-
-// ykSetup generates the anamorph key on the plugged-in yubikey, once.
-func (p *hidePanel) ykSetup() {
 	if p.settingUp {
 		return
 	}
+	switch info.Status {
+	case yubikey.NoCard:
+		setText(p.ykStatus, "PLUG IN A YUBIKEY", colDim)
+		setText(p.ykName, "", colDim)
+		p.setYkActions(p.actPair)
+	case yubikey.NoKey:
+		setText(p.ykStatus, fmt.Sprintf("NEW YUBIKEY %d - CHOOSE A SETUP", info.Serial), colFg)
+		setText(p.ykName, "", colDim)
+		p.setYkActions(p.actSetup, p.actPair)
+	case yubikey.Ready:
+		setText(p.ykStatus, fmt.Sprintf("YUBIKEY %d READY", info.Serial), colFg)
+		setText(p.ykName, "KEY: "+strings.ToUpper(info.Name), colDim)
+		p.setYkActions(p.actPair)
+	}
+}
+
+// ykSetupClick generates a key on the plugged-in yubikey for this computer
+// alone; pairing two yubikeys is the separate ceremony in pair.go.
+func (p *hidePanel) ykSetupClick() {
+	if p.settingUp || p.pairing != nil || p.ykInfo.Status != yubikey.NoKey {
+		return
+	}
 	p.settingUp = true
-	setText(p.ykStatus, "NEW YUBIKEY - SETTING IT UP, KEEP IT PLUGGED IN…", colDim)
+	setText(p.ykStatus, "SETTING UP - KEEP IT PLUGGED IN…", colDim)
+	setText(p.ykName, "", colDim)
+	p.setYkActions()
 	session := p.ykSession
 	go func() {
 		info, err := ykSetup()
@@ -175,6 +215,7 @@ func (p *hidePanel) ykSetup() {
 			p.settingUp = false
 			if err != nil {
 				setText(p.ykStatus, strings.ToUpper(err.Error()), colDanger)
+				p.setYkActions(p.actSetup, p.actPair)
 				return
 			}
 			p.ykUpdate(info)
@@ -182,11 +223,29 @@ func (p *hidePanel) ykSetup() {
 	}()
 }
 
+// setYkActions swaps the row of small action links under the yubikey
+// status for the given tabs.
+func (p *hidePanel) setYkActions(tabs ...*tab) {
+	objs := make([]fyne.CanvasObject, 0, len(tabs)*2)
+	for i, t := range tabs {
+		if i > 0 {
+			objs = append(objs, smallText("·", colFaint))
+		}
+		objs = append(objs, t)
+	}
+	p.ykActions.Objects = objs
+	p.ykActions.Refresh()
+}
+
 // save encrypts in the background, then hands the result to saveImage,
 // which re-enables the button once the save dialog resolves.
 func (p *hidePanel) save() {
 	if p.cover == nil {
 		setText(p.status, "CHOOSE AN IMAGE FIRST", colDanger)
+		return
+	}
+	if p.yubikey && p.pairing != nil {
+		setText(p.status, "FINISH PAIRING FIRST", colDanger)
 		return
 	}
 	if p.yubikey && p.ykInfo.Status != yubikey.Ready {
