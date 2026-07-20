@@ -30,9 +30,15 @@ import (
 const (
 	slotFirst = 0x82
 	slotLast  = 0x95
-	markerCN  = "anamorph"
 	pairKind  = "pair"
 )
+
+// markerCN is the family name every anamorph marker certificate carries in
+// its subject; findKey only ever sees keys of the current family. it is a
+// variable only so the hardware tests can point the whole package at a
+// separate "anamorph-test" family and keep their hands off real keys - the
+// hyphen matters, as neither family's name prefixes the other's.
+var markerCN = "anamorph"
 
 type Status int
 
