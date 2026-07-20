@@ -9,8 +9,8 @@ Hide encrypted messages inside ordinary images.
 
 A small desktop app. You give it an image and a message, it gives you back
 a PNG that looks exactly the same but carries the message in its pixels.
-Anyone with the PNG and the password can read the message. Without the
-password, it is just a picture.
+Anyone with the PNG and the password - or the right YubiKey - can read
+the message. To everyone else, it is just a picture.
 
 Everything is Go. Two dependencies: [Fyne](https://fyne.io) for the GUI
 and [piv-go](https://github.com/go-piv/piv-go) for PIV smartcard access,
@@ -114,6 +114,24 @@ get a new PNG.
 **Reveal**: drop in a PNG made by anamorph. The app tells you what it
 needs - the password, or the right YubiKey in the port - and shows the
 message.
+
+### The YubiKey flow
+
+A green dot in the corner means a set-up YubiKey is plugged in. Lock a
+message to it on the Hide tab; on Reveal the app finds the right key by
+name and the message stays sealed until you physically touch it - the
+key blinks while it waits.
+
+<table>
+<tr>
+<td><img src="docs/yubikey-hide.png" alt="hide: lock a message to a yubikey"></td>
+<td><img src="docs/yubikey-reveal.png" alt="reveal: the right yubikey is detected"></td>
+</tr>
+<tr>
+<td><img src="docs/yubikey-touch.png" alt="decryption waits for a physical touch"></td>
+<td><img src="docs/yubikey-revealed.png" alt="the hidden message appears"></td>
+</tr>
+</table>
 
 ## Code layout
 
